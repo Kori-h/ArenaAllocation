@@ -6,7 +6,7 @@
 
 struct Node 
 {
-	Node* next;
+	Node* p_next;
 };
 
 class FixedArena
@@ -14,20 +14,21 @@ class FixedArena
 	public:
 		FixedArena(size_t size);
 		~FixedArena();
-		template<typename T> T* Allocate();
-		template<typename T> void Deallocate(T* memory);
-		void Flush();
+		template<typename T> T* allocate();
+		template<typename T> void deallocate(T*& memory);
+		void flush();
 
 	private:
-		char* buffer;
-		Node free;
-		
-		size_t padding;
-		size_t size;
-		size_t index;
+		char* m_buffer;
+		size_t m_buffer_index;
 
-		size_t mem_deallocated;
-		size_t mem_reallocated;
+		Node m_free_node;
+
+		size_t m_padding;
+		size_t m_size;
+		
+		size_t m_deallocated;
+		size_t m_reallocated;
 
 		FixedArena(FixedArena const&) = delete;
 		FixedArena& operator=(FixedArena const&) = delete;
@@ -36,51 +37,52 @@ class FixedArena
 };
 
 template<typename T>
-T* FixedArena::Allocate()
+T* FixedArena::allocate()
 {
-	size_t blocks = (sizeof(T) + padding - 1) / padding;
-	void* address = nullptr;
+	size_t blocks = (sizeof(T) + m_padding - 1) / m_padding;
+	void* p_address = nullptr;
 
-	Node* prev_ptr = nullptr;
-	Node* ptr = free.next;
+	Node* p_prev_node = nullptr;
+	Node* p_curr_node = m_free_node.p_next;
 
 	size_t i{};
-	while (ptr)
+	while (p_curr_node)
 	{
 		++i;
 
 		if (blocks == i)
 		{
-			if (prev_ptr)
+			if (p_prev_node)
 			{
-				prev_ptr->next = ptr->next;
-				address = static_cast<void*>(prev_ptr);
+				p_prev_node->p_next = p_curr_node->p_next;
+				p_address = static_cast<void*>(p_prev_node);
 			}
 			else
 			{
-				address = free.next;
-				free.next = ptr->next;
+				p_address = m_free_node.p_next;
+				m_free_node.p_next = p_curr_node->p_next;
 			}
 
-			size_t allocated = blocks * padding;
-			mem_reallocated += allocated;
-			std::cout << "Allocate[used] " << typeid(T).name() << " : " << address << std::endl;
+			size_t allocated = blocks * m_padding;
+			m_reallocated += allocated;	
+			std::cout << __func__ << "[used] " << typeid(T).name() << " : " << p_address << std::endl;
 
 			// allocate this block
-			return static_cast<T*>(address);
+			memset(p_address, 0, allocated);
+			return static_cast<T*>(p_address);
 		}
 
-		if (ptr->next)
+		if (p_curr_node->p_next)
 		{
 			// check if the next ptr is only 1 block away
 			// else reset i since the data cannot fit here
-			if (ptr->next - ptr != 1)
+			if (p_curr_node->p_next - p_curr_node != 1)
 			{
-				prev_ptr = ptr->next;
+				p_prev_node = p_curr_node->p_next;
 				i = 0;
 			}
 
-			ptr = ptr->next;
+			p_curr_node = p_curr_node->p_next;
 		}
 		else
 		{
@@ -88,40 +90,52 @@ T* FixedArena::Allocate()
 		}
 	}
 
-	if (index + sizeof(T) >= size)
+	if (m_buffer_index + sizeof(T) >= m_size)
 	{
 		std::cerr << __func__ << " : Arena out of memory." << std::endl;
 		return nullptr;
 	}
 
-	address = buffer + index;
-	size_t allocated = blocks * padding;
-	index += allocated;
-	std::cout << "Allocate[new] " << typeid(T).name() << " : " << address << std::endl;
-	return static_cast<T*>(address);
+	p_address = m_buffer + m_buffer_index;
+	size_t allocated = blocks * m_padding;
+	m_buffer_index += allocated;
+	std::cout << __func__ << "[new] " << typeid(T).name() << " : " << p_address << std::endl;
+	memset(p_address, 0, allocated);
+	return static_cast<T*>(p_address);
 }
 
 template<typename T>
-void FixedArena::Deallocate(T* memory)
+void FixedArena::deallocate(T*& p_memory)
 {
-	void* address = static_cast<void*>(memory);
+	if (p_memory == nullptr) 
+	{
+		std::cerr << __func__ << " : Invalid deallocation of null pointer." << std::endl;
+		return;
+	}
+
+	void* p_address = static_cast<void*>(p_memory);
+	std::cout << __func__ << " " << typeid(T).name() << " : " << p_address << std::endl;
+
 	size_t deallocated = sizeof(T);
-	memset(address, 0, deallocated);
+	memset(p_address, 0, deallocated);
 
-	size_t blocks = (sizeof(T) + padding - 1) / padding;;
+	size_t blocks = (sizeof(T) + m_padding - 1) / m_padding;
 
-	Node* ptr = &free;
-	while (ptr->next) ptr = ptr->next;
+	Node* ptr = &m_free_node;
+
+	while (ptr->p_next) 
+	{
+		ptr = ptr->p_next;
+	}
 
 	for (size_t i{}; i < blocks; ++i)
 	{
-		address = reinterpret_cast<char*>(memory) + i * padding;
-		ptr->next = static_cast<Node*>(address);
-		ptr = ptr->next;
+		p_address = reinterpret_cast<char*>(p_memory) + i * m_padding;
+		ptr->p_next = static_cast<Node*>(p_address);
+		ptr = ptr->p_next;
 	}
 
-	std::cout << "Deallocate " << typeid(T).name() << " : " << address << std::endl;
-	mem_deallocated += blocks * padding;
-	memory = nullptr;
+	m_deallocated += blocks * m_padding;
+	p_memory = nullptr;
 }
 #endif

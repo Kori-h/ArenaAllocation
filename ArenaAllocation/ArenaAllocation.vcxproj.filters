@@ -26,5 +26,8 @@
     <ClInclude Include="arena.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="arenallist.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
