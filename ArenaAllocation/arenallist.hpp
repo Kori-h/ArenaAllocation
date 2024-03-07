@@ -4,6 +4,51 @@
 #include "arena.hpp"
 
 template<typename T>
+class ArenaWrapper
+{
+	public:
+		ArenaWrapper(FixedArena& arena) : p_arena(&arena) 
+		{
+			p_value = p_arena->allocate<T>();
+		}
+
+		~ArenaWrapper() 
+		{
+			p_arena->deallocate(p_value);
+		}
+
+		ArenaWrapper& operator=(T value)
+		{
+			*p_value = value;
+			return *this;
+		}
+
+		T* operator->() const
+		{
+			return p_value;
+		}
+
+		operator T* () const
+		{
+			return p_value;
+		}
+
+		T& get() const
+		{
+			return *p_value;
+		}
+
+		void set(T const& value) const
+		{
+			*p_value = value;
+		}
+
+	private:	
+		T* p_value;
+		FixedArena* p_arena;
+};
+
+template<typename T>
 struct ArenaListItem
 {
 	ArenaListItem() : p_next{ nullptr }, T{} {};

@@ -1,13 +1,35 @@
 #include "arena.hpp"
 
-FixedArena::FixedArena(size_t size) : m_buffer(new char[size]), m_buffer_index(0), m_free_node(), m_padding(8), m_size(size), m_deallocated(0), m_reallocated(0)
+FixedArena::FixedArena(size_t size) : m_extern_flag(false), m_buffer(new char[size]), m_buffer_index(0), m_free_node(), m_padding(8), m_size(size), m_deallocated(0), m_reallocated(0)
 {
-	memset(m_buffer, 0, size);
+	std::cout << __func__ << " : Creating Arena of size " << m_size << std::endl;
+	memset(m_buffer, 0, m_size);
+}
+
+FixedArena::FixedArena(char* buffer, size_t size) : m_extern_flag(true), m_buffer(buffer), m_buffer_index(0), m_free_node(), m_padding(8), m_size(size), m_deallocated(0), m_reallocated(0)
+{
+	std::cout << __func__ << " : Hosting Arena of size " << m_size << std::endl;
+	memset(m_buffer, 0, m_size);
 }
 
 FixedArena::~FixedArena()
 {
-	delete[] m_buffer;
+	if (m_buffer == nullptr) 
+	{
+		return;
+	}
+
+	// only delete if buffer is not created within the FixedArena class
+	if (m_extern_flag)
+	{
+		std::cout << __func__ << " : Clearing Arena of size " << m_size << std::endl;
+		m_buffer = nullptr;
+	}
+	else
+	{
+		std::cout << __func__ << " : Deleting Arena of size " << m_size << std::endl;
+		delete[] m_buffer;
+	}
 }
 
 void FixedArena::flush()

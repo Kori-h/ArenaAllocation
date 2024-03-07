@@ -13,12 +13,14 @@ class FixedArena
 {
 	public:
 		FixedArena(size_t size);
+		FixedArena(char* buffer, size_t size);
 		~FixedArena();
 		template<typename T> T* allocate();
 		template<typename T> void deallocate(T*& memory);
 		void flush();
 
 	private:
+		bool m_extern_flag;
 		char* m_buffer;
 		size_t m_buffer_index;
 
